@@ -1,0 +1,26 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {     
+      
+      "Sku": {
+        "value": "2012-R2-Datacenter"
+      },      
+      "location": {
+        "value": "West Europe"
+      },
+     "serverName": {
+      "value": "myJavaProjectSQLServer2021"           
+    },
+    "sqlDBName": {
+      "value": "MyDB" 
+    }, 
+    "administratorLogin": {
+      "value": "SQLadmin"          
+    },
+    "administratorLoginPassword": {
+      "value": "Myappjava@2021"
+      }
+    }
+  }
+  
