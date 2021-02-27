@@ -165,6 +165,21 @@ stages:
         csmFile: '$(Pipeline.Workspace)/**/container-webapp-template.json'
         overrideParameters: '-webAppName $(webAppNameDEV) -hostingPlanName $(webAppNameDEV) -appInsightsLocation "$(locationDEV)" -sku "S1 Standard" -registryName $(acrNameDEV) -registryLocation "$(locationDEV)" -registrySku standard -imageName $(imageNameDEV):$(Build.BuildId)'
 
+      # Create or update MySQL Database for dev environment
+    - task: AzureResourceManagerTemplateDeployment@3
+      inputs:
+        deploymentScope: 'Resource Group'
+        azureResourceManagerConnection: '$(azureSubscriptionDEV)'
+        subscriptionId: '$(subscriptionIdDEV)'
+        action: 'Create Or Update Resource Group'
+        resourceGroupName: '$(rgNameDEV)'
+        location: 'West Europe'
+        templateLocation: 'Linked artifact'
+        csmFile: '$(Pipeline.Workspace)/**/mySQLdatabase-template.json'
+        csmParametersFile: '$(Pipeline.Workspace)/**/mySQLdatabase-parameter.json'
+        overrideParameters: '-serverName $(mySqlServerNameDEV) -sqlDBName $(mySqlDBNameDEV)'
+        deploymentMode: 'Incremental'  
+
     # Deploy App Service in dev environment
     - task: AzureRmWebAppDeployment@3
       displayName: 'Deploy Azure App Service for DEV'
@@ -207,6 +222,21 @@ stages:
         location: '$(locationTEST)'
         csmFile: '$(Pipeline.Workspace)/**/container-webapp-template.json'
         overrideParameters: '-webAppName $(webAppNameTEST) -hostingPlanName $(webAppNameTEST) -appInsightsLocation "$(locationTEST)" -sku "S1 Standard" -registryName $(acrNameTEST) -registryLocation "$(locationTEST)" -registrySku standard -imageName $(imageNameTEST):$(Build.BuildId)'
+
+    # Create or update MySQL Database for TEST environment
+    - task: AzureResourceManagerTemplateDeployment@3
+      inputs:
+        deploymentScope: 'Resource Group'
+        azureResourceManagerConnection: '$(azureSubscriptionTEST)'
+        subscriptionId: '$(subscriptionIdTEST)'
+        action: 'Create Or Update Resource Group'
+        resourceGroupName: '$(rgNameTEST)'
+        location: 'West Europe'
+        templateLocation: 'Linked artifact'
+        csmFile: '$(Pipeline.Workspace)/**/mySQLdatabase-template.json'
+        csmParametersFile: '$(Pipeline.Workspace)/**/mySQLdatabase-parameter.json'
+        overrideParameters: '-serverName $(mySqlServerNameTEST) -sqlDBName $(mySqlDBNameTEST)'
+        deploymentMode: 'Incremental'  
 
     # Deploy App Service in  TEST environment
     - task: AzureRmWebAppDeployment@3
@@ -251,6 +281,21 @@ stages:
         location: '$(locationPROD)'
         csmFile: '$(Pipeline.Workspace)/**/container-webapp-template.json'
         overrideParameters: '-webAppName $(webAppNamePROD) -hostingPlanName $(webAppNamePROD) -appInsightsLocation "$(locationPROD)" -sku "S1 Standard" -registryName $(acrNamePROD) -registryLocation "$(locationPROD)" -registrySku standard -imageName $(imageNamePROD):$(Build.BuildId)'
+
+      # Create or update MySQL Database for PROD environment
+    - task: AzureResourceManagerTemplateDeployment@3
+      inputs:
+        deploymentScope: 'Resource Group'
+        azureResourceManagerConnection: '$(azureSubscriptionPROD)'
+        subscriptionId: '$(subscriptionIdPROD)'
+        action: 'Create Or Update Resource Group'
+        resourceGroupName: '$(rgNamePROD)'
+        location: 'West Europe'
+        templateLocation: 'Linked artifact'
+        csmFile: '$(Pipeline.Workspace)/**/mySQLdatabase-template.json'
+        csmParametersFile: '$(Pipeline.Workspace)/**/mySQLdatabase-parameter.json'
+        overrideParameters: '-serverName $(mySqlServerNamePROD) -sqlDBName $(mySqlDBNamePROD)'
+        deploymentMode: 'Incremental'  
 
     # Deploy App Service in  PROD environment
     - task: AzureRmWebAppDeployment@3
