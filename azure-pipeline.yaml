@@ -167,6 +167,7 @@ stages:
 
       # Create or update MySQL Database for dev environment
     - task: AzureResourceManagerTemplateDeployment@3
+      displayName: 'Create or update MySQL Database for DEV'
       inputs:
         deploymentScope: 'Resource Group'
         azureResourceManagerConnection: '$(azureSubscriptionDEV)'
@@ -225,6 +226,7 @@ stages:
 
     # Create or update MySQL Database for TEST environment
     - task: AzureResourceManagerTemplateDeployment@3
+      displayName: 'Create or update MySQL Database for TEST'
       inputs:
         deploymentScope: 'Resource Group'
         azureResourceManagerConnection: '$(azureSubscriptionTEST)'
@@ -284,6 +286,7 @@ stages:
 
       # Create or update MySQL Database for PROD environment
     - task: AzureResourceManagerTemplateDeployment@3
+      displayName: 'Create or update MySQL Database for PROD'
       inputs:
         deploymentScope: 'Resource Group'
         azureResourceManagerConnection: '$(azureSubscriptionPROD)'
