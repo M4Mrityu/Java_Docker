@@ -1,15 +1,11 @@
 trigger:
   branches:
     include: 
-    - main
+    - master
 variables:
-  buildConfiguration: 'Release'
-  location: 'West Europe'
-  acrHostName: 'mywebappdocker3acr.azurecr.io'
-  acrName: 'mywebappdocker3acr'
-  rgName: 'Docker_App'
-  imageName: 'mywebappdocker3'
-  webAppName: 'mywebappdocker3'
+- group: app-dev-env-variable-group
+- group: app-test-env-variable-group
+- group: app-prod-env-variable-group
 
 stages:
 
@@ -21,16 +17,35 @@ stages:
       vmImage: 'Ubuntu-16.04'
     steps:
 
-    # Create or update the ACR resource
+    # Create or update the ACR resource DEV
     - task: AzureResourceGroupDeployment@2
-      displayName: 'Azure Deployment:Create Azure Container Registry'
+      displayName: 'Create Docker Container Registry for DEV' 
       inputs:
-        azureSubscription: 'ACRsc'
-        resourceGroupName: '$(rgName)'
-        location: $(location)
+        azureSubscription: '$(azureSubscriptionDEV)'
+        resourceGroupName: '$(rgNameDEV)'
+        location: $(locationDEV)
         csmFile: '$(System.DefaultWorkingDirectory)/**/containerRegistry-template.json'
-        overrideParameters: '-registryName "$(acrName)" -registryLocation "$(location)" -registrySku standard'
+        overrideParameters: '-registryName "$(acrNameDEV)" -registryLocation "$(locationDEV)" -registrySku standard'
 
+    # Create or update the ACR resource TEST
+    - task: AzureResourceGroupDeployment@2
+      displayName: 'Create Docker Container Registry for TEST'
+      inputs:
+        azureSubscription: '$(azureSubscriptionTEST)'
+        resourceGroupName: '$(rgNameTEST)'
+        location: $(locationTEST)
+        csmFile: '$(System.DefaultWorkingDirectory)/**/containerRegistry-template.json'
+        overrideParameters: '-registryName "$(acrNameTEST)" -registryLocation "$(locationTEST)" -registrySku standard'
+        
+    # Create or update the ACR resource PROD
+    - task: AzureResourceGroupDeployment@2
+      displayName: 'Create Docker Container Registry for PROD'
+      inputs:
+        azureSubscription: '$(azureSubscriptionPROD)'
+        resourceGroupName: '$(rgNamePROD)'
+        location: $(locationPROD)
+        csmFile: '$(System.DefaultWorkingDirectory)/**/containerRegistry-template.json'
+        overrideParameters: '-registryName "$(acrNamePROD)" -registryLocation "$(locationPROD)" -registrySku standard'
    
     - task: Maven@3
       inputs:
@@ -59,41 +74,77 @@ stages:
         arguments: '--configuration $(BuildConfiguration) --output $(System.DefaultWorkingDirectory)/PublishedWebApp'
         zipAfterPublish: false
 
-    # Build container image
+    # Build container image for DEV
     - task: Docker@1
-      displayName: 'Build container image'
+      displayName: 'Build container image DEV'
       inputs:
-        azureSubscriptionEndpoint: 'ACRsc'
-        azureContainerRegistry: '$(acrHostName)'
-        imageName: '$(imageName):$(Build.BuildId)'
+        azureSubscriptionEndpoint: '$(azureSubscriptionDEV)'
+        azureContainerRegistry: '$(acrHostNameDEV)'
+        imageName: '$(imageNameDEV):$(Build.BuildId)'
 
-    # Push container image
+    # Push container image in DEV for ready to use
     - task: Docker@1
-      displayName: 'Push container image'
+      displayName: 'Push container image DEV'
       inputs:   
-        azureSubscriptionEndpoint: 'ACRsc'    
-        azureContainerRegistry: '$(acrHostName)'        
-       # repository: '$(imageName)'
+        azureSubscriptionEndpoint: '$(azureSubscriptionDEV)' 
+        azureContainerRegistry: '$(acrHostNameDEV)'  
         command: 'Push an image'
-        #tag: $(Build.BuildId)
-        imageName: '$(imageName):$(Build.BuildId)'
-        #imageName: '$(acrHostName)/$(imageName):$(Build.BuildId)'   
+        imageName: '$(imageNameDEV):$(Build.BuildId)'
+        
+    # Build container image for TEST
+    - task: Docker@1
+      displayName: 'Build container image TEST'
+      inputs:
+        azureSubscriptionEndpoint: '$(azureSubscriptionTEST)'
+        azureContainerRegistry: '$(acrHostNameTEST)'
+        imageName: '$(imageNameTEST):$(Build.BuildId)'
+
+    # Push container image in TEST for ready to use
+    - task: Docker@1
+      displayName: 'Push container image TEST'
+      inputs:   
+        azureSubscriptionEndpoint: '$(azureSubscriptionTEST)' 
+        azureContainerRegistry: '$(acrHostNameTEST)'  
+        command: 'Push an image'
+        imageName: '$(imageNameTEST):$(Build.BuildId)'
+        
+    # Build container image for PROD
+    - task: Docker@1
+      displayName: 'Build container image for PROD'
+      inputs:
+        azureSubscriptionEndpoint: '$(azureSubscriptionPROD)'
+        azureContainerRegistry: '$(acrHostNamePROD)'
+        imageName: '$(imageNamePROD):$(Build.BuildId)'
+
+    # Push container image in PROD for ready to use
+    - task: Docker@1
+      displayName: 'Push container image in PROD'
+      inputs:   
+        azureSubscriptionEndpoint: '$(azureSubscriptionPROD)' 
+        azureContainerRegistry: '$(acrHostNamePROD)'  
+        command: 'Push an image'
+        imageName: '$(imageNamePROD):$(Build.BuildId)'
+
 
       # Copy ARM templates
     - task: CopyFiles@2
       displayName: 'Copy ARM templates'
       inputs:
-        SourceFolder: ARM Templates
+        SourceFolder: ARMTemplates
         TargetFolder: '$(build.artifactstagingdirectory)'
 
     # Publish the app as an artifact
     - publish: $(Build.StagingDirectory)
       artifact: app
 
-# Staging release
-- stage: Staging
+# Staging DEV
+- stage: DevDeployment
+  displayName: 'Deploy to DEV environment'
+  condition: succeeded()
+  dependsOn: BuildAndTest
+  
   jobs:
-  - job: Release
+  - job: DevDeployment    
     pool:
       vmImage: 'Ubuntu-16.04'
     steps:
@@ -104,25 +155,112 @@ stages:
     - download: current
       artifact: app
 
-    # Create or update Azure App Service
+    # Create or update Azure App Service for dev environment
     - task: AzureResourceGroupDeployment@2
-      displayName: 'Azure Deployment:Create Azure App Service'
+      displayName: 'Azure Deployment:Create Azure App Service for DEV'
       inputs:
-        azureSubscription: 'ACRsc'
-        resourceGroupName: '$(rgName)'
-        location: '$(location)'
+        azureSubscription: '$(azureSubscriptionDEV)'
+        resourceGroupName: '$(rgNameDEV)'
+        location: '$(locationDEV)'
         csmFile: '$(Pipeline.Workspace)/**/container-webapp-template.json'
-        overrideParameters: '-webAppName $(webAppName) -hostingPlanName $(webAppName) -appInsightsLocation "$(location)" -sku "S1 Standard" -registryName $(acrName) -registryLocation "$(location)" -registrySku standard -imageName $(imageName):$(Build.BuildId)'
+        overrideParameters: '-webAppName $(webAppNameDEV) -hostingPlanName $(webAppNameDEV) -appInsightsLocation "$(locationDEV)" -sku "S1 Standard" -registryName $(acrNameDEV) -registryLocation "$(locationDEV)" -registrySku standard -imageName $(imageNameDEV):$(Build.BuildId)'
 
-    # Deploy App Service
+    # Deploy App Service in dev environment
     - task: AzureRmWebAppDeployment@3
-      displayName: 'Deploy Azure App Service'
+      displayName: 'Deploy Azure App Service for DEV'
       inputs:
-        azureSubscription: 'ACRsc'
+        azureSubscription: '$(azureSubscriptionDEV)'
         appType: applinux
-        WebAppName: $(webAppName)
-        DockerNamespace: $(acrHostName)
-        DockerRepository: $(webAppName)
+        WebAppName: $(webAppNameDEV)
+        DockerNamespace: $(acrHostNameDEV)
+        DockerRepository: $(webAppNameDEV)
+        DockerImageTag: '$(Build.BuildId)'
+        WebAppUri: webAppUrl
+        TakeAppOfflineFlag: true
+        UseWebDeploy: true
+        RenameFilesFlag: true
+        
+        
+# Staging TEST
+- stage: TESTDeployment
+  displayName: 'Deploy to Test environment'
+  condition: succeeded()
+  dependsOn: DevDeployment
+  jobs:
+  - job: TESTDeployment
+    pool:
+      vmImage: 'Ubuntu-16.04'
+    steps:
+    # Don't clone the repo
+    - checkout: none
+
+    # Download the published application artifact
+    - download: current
+      artifact: app
+
+    # Create or update Azure App Service for TEST environment
+    - task: AzureResourceGroupDeployment@2
+      displayName: 'Azure Deployment:Create Azure App Service for Test environment'
+      inputs:
+        azureSubscription: '$(azureSubscriptionTEST)'
+        resourceGroupName: '$(rgNameTEST)'
+        location: '$(locationTEST)'
+        csmFile: '$(Pipeline.Workspace)/**/container-webapp-template.json'
+        overrideParameters: '-webAppName $(webAppNameTEST) -hostingPlanName $(webAppNameTEST) -appInsightsLocation "$(locationTEST)" -sku "S1 Standard" -registryName $(acrNameTEST) -registryLocation "$(locationTEST)" -registrySku standard -imageName $(imageNameTEST):$(Build.BuildId)'
+
+    # Deploy App Service in  TEST environment
+    - task: AzureRmWebAppDeployment@3
+      displayName: 'Deploy Azure App Service in TEST environment'
+      inputs:
+        azureSubscription: '$(azureSubscriptionTEST)'
+        appType: applinux
+        WebAppName: $(webAppNameTEST)
+        DockerNamespace: $(acrHostNameTEST)
+        DockerRepository: $(webAppNameTEST)
+        DockerImageTag: '$(Build.BuildId)'
+        WebAppUri: webAppUrl
+        TakeAppOfflineFlag: true
+        UseWebDeploy: true
+        RenameFilesFlag: true
+        
+                
+# Staging PROD
+- stage: PRODDeployment
+  displayName: 'Deploy to PROD environment'
+  condition: succeeded()
+  dependsOn: TESTDeployment
+  jobs:
+  - job: PRODDeployment
+    
+    pool:
+      vmImage: 'Ubuntu-16.04'
+    steps:
+    # Don't clone the repo
+    - checkout: none
+
+    # Download the published application artifact
+    - download: current
+      artifact: app
+
+    # Create or update Azure App Service for PROD environment
+    - task: AzureResourceGroupDeployment@2
+      displayName: 'Azure Deployment:Create Azure App Service for PROD environment'
+      inputs:
+        azureSubscription: '$(azureSubscriptionPROD)'
+        resourceGroupName: '$(rgNamePROD)'
+        location: '$(locationPROD)'
+        csmFile: '$(Pipeline.Workspace)/**/container-webapp-template.json'
+        overrideParameters: '-webAppName $(webAppNamePROD) -hostingPlanName $(webAppNamePROD) -appInsightsLocation "$(locationPROD)" -sku "S1 Standard" -registryName $(acrNamePROD) -registryLocation "$(locationPROD)" -registrySku standard -imageName $(imageNamePROD):$(Build.BuildId)'
+
+    # Deploy App Service in  PROD environment
+    - task: AzureRmWebAppDeployment@3
+      displayName: 'Deploy Azure App Service in PROD environment'
+      inputs:
+        azureSubscription: '$(azureSubscriptionPROD)'
+        appType: applinux
+        WebAppName: $(webAppNamePROD)
+        DockerNamespace: $(acrHostNamePROD)
+        DockerRepository: $(webAppNamePROD)
         DockerImageTag: '$(Build.BuildId)'
         WebAppUri: webAppUrl
         TakeAppOfflineFlag: true
