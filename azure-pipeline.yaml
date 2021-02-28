@@ -9,7 +9,7 @@ variables:
 
 stages:
 
-# Build Stage
+# Build and test Stage
 - stage: BuildAndTest
   jobs:
   - job: BuildAndTest
